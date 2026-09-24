@@ -12,3 +12,4 @@ jobs:
         with:
           node-version: '22'
       - run: node scripts/validate-catalogs.mjs
+      - run: npm test

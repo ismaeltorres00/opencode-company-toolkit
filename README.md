@@ -23,6 +23,8 @@ commands/                 Comandos para copiar al proyecto consumidor
   review.md
 mcp/                      Fragmentos de configuracion MCP
   jira.example.jsonc
+cli/bin.mjs               CLI para instalar y sincronizar recursos locales
+toolkit.manifest.json     Registro de scopes y recursos disponibles
 scripts/validate-catalogs.mjs
 scripts/serve-catalogs.mjs
 ```
@@ -97,21 +99,73 @@ Un proyecto compone solo los scopes que necesita:
 
 Los scopes pueden representar una tecnologia, un dominio o un proyecto. El proyecto consumidor mantiene sus reglas propias en `AGENTS.md`.
 
-## Agente y comando
+## CLI del toolkit
 
-`agents/code-reviewer.md` es un agente de solo lectura y `commands/review.md` define `/review`. Copia ambos archivos juntos en el proyecto consumidor:
+El CLI automatiza el consumo por proyecto. Las skills se registran como URLs remotas y los agentes/comandos se copian a `.opencode/`, donde OpenCode los descubre.
+
+El comando `npx @company/opencode-toolkit` es un ejemplo. No funcionara hasta sustituir `@company` por el scope corporativo y publicar el paquete en el registro npm interno.
+
+Para probar el CLI sin publicarlo, ejecútalo desde un clon local del toolkit:
+
+```bash
+node "C:\ruta\a\opencode-company-toolkit\cli\bin.mjs" init
+```
+
+Tras publicarlo en el registro interno, un proyecto nuevo ejecuta:
+
+```bash
+npx @company/opencode-toolkit init
+```
+
+El asistente pide la URL de los catalogos, el tipo de proyecto y los recursos opcionales. Para un proyecto .NET selecciona por defecto los scopes `global` y `dotnet`; el usuario puede marcar agentes, comandos y MCP.
+
+Durante el desarrollo del toolkit se puede ejecutar directamente:
+
+```bash
+node <ruta-al-toolkit>/cli/bin.mjs init
+```
+
+Tambien admite instalacion no interactiva:
+
+```bash
+node <ruta-al-toolkit>/cli/bin.mjs init \
+  --catalog-base-url https://ai.empresa.com/skills \
+  --scope global,dotnet \
+  --command review \
+  --mcp jira \
+  --yes
+```
+
+El comando `review` requiere `code-reviewer`; el CLI incorpora ese agente automaticamente.
+
+Los archivos gestionados quedan registrados en el proyecto:
 
 ```text
 .opencode/
+  toolkit.json             Selecciones del proyecto
+  toolkit-lock.json        Version y hashes de recursos gestionados
   agents/code-reviewer.md
   commands/review.md
 ```
 
-El comando usa el agente `code-reviewer`, por lo que los dos archivos son necesarios.
+Gestion posterior:
+
+```bash
+npx @company/opencode-toolkit configure  # Cambiar selecciones de forma interactiva
+npx @company/opencode-toolkit update     # Actualizar recursos del toolkit instalado
+npx @company/opencode-toolkit status     # Ver selecciones y modificaciones locales
+npx @company/opencode-toolkit check      # Fallar si hay recursos ausentes o modificados
+npx @company/opencode-toolkit remove --kind scope --name dotnet
+npx @company/opencode-toolkit remove --kind command --name review
+```
+
+El CLI no sobrescribe ni elimina un agente o comando modificado localmente sin `--force`. Al quitar un scope, elimina su URL gestionada de `opencode.jsonc`; al quitar un MCP, elimina solamente su bloque gestionado.
+
+Al actualizar `opencode.jsonc`, conserva las claves de configuracion existentes, pero normaliza el archivo como JSON y elimina sus comentarios. Mantener las reglas de proyecto en `AGENTS.md` evita mezclar instrucciones con esta configuracion gestionada.
 
 ## MCP de Jira
 
-`mcp/jira.example.jsonc` es un fragmento valido de configuracion. Integra el bloque `mcp.jira` en el `opencode.jsonc` del proyecto y sustituye la URL por la de vuestro servidor MCP:
+`mcp/jira.example.jsonc` es el recurso que instala el CLI al seleccionar Jira. Sustituye la URL de ejemplo por la del servidor MCP corporativo antes de distribuir el toolkit:
 
 ```jsonc
 {

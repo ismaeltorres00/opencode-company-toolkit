@@ -1,0 +1,19 @@
+{
+  "name": "@company/opencode-toolkit",
+  "version": "0.1.0",
+  "private": false,
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "type": "module",
+  "bin": {
+    "opencode-toolkit": "./cli/bin.mjs"
+  },
+  "scripts": {
+    "check": "node scripts/validate-catalogs.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

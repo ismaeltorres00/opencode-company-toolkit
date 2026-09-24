@@ -1,0 +1,42 @@
+{
+  "version": "1",
+  "scopes": {
+    "global": {
+      "description": "Capacidades comunes para todos los proyectos"
+    },
+    "dotnet": {
+      "description": "Capacidades para proyectos .NET"
+    },
+    "node": {
+      "description": "Capacidades para proyectos Node.js"
+    },
+    "frontend": {
+      "description": "Capacidades para proyectos frontend"
+    }
+  },
+  "profiles": {
+    "dotnet": ["global", "dotnet"],
+    "node": ["global", "node"],
+    "frontend": ["global", "frontend"],
+    "custom": ["global"]
+  },
+  "agents": {
+    "code-reviewer": {
+      "source": "agents/code-reviewer.md"
+    }
+  },
+  "commands": {
+    "review": {
+      "source": "commands/review.md",
+      "requires": {
+        "agents": ["code-reviewer"]
+      }
+    }
+  },
+  "mcps": {
+    "jira": {
+      "source": "mcp/jira.example.jsonc",
+      "key": "jira"
+    }
+  }
+}
