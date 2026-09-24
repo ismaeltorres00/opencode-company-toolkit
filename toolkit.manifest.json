@@ -36,5 +36,12 @@
       "key": "jira",
       "description": "Integracion remota con Jira"
     }
+  },
+  "plugins": {
+    "update-notice": {
+      "source": "plugins/toolkit-update-notice.ts",
+      "destination": "plugins/toolkit-update-notice.ts",
+      "description": "Avisa al iniciar OpenCode si existe una version nueva del toolkit"
+    }
   }
 }

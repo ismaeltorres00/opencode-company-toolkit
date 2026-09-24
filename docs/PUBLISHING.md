@@ -96,6 +96,8 @@ npm view @ismaeltorres00/opencode-toolkit version
 
 ## Usar En Un Proyecto
 
+La guia operativa completa esta en [`USER-GUIDE.md`](USER-GUIDE.md). Esta seccion resume la instalacion para quien publica el toolkit.
+
 En la raiz de un proyecto nuevo:
 
 ```powershell

@@ -4,6 +4,11 @@
       "name": "jira",
       "version": "1",
       "files": ["SKILL.md"]
+    },
+    {
+      "name": "toolkit-authoring",
+      "version": "1",
+      "files": ["SKILL.md"]
     }
   ]
 }

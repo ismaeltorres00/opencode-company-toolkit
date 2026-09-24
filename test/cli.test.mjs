@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url"
 const execFile = promisify(execFileCallback)
 const root = fileURLToPath(new URL("..", import.meta.url))
 const cli = join(root, "cli", "bin.mjs")
+const packageInfo = JSON.parse(await readFile(join(root, "package.json"), "utf8"))
 
 async function run(project, ...args) {
   return execFile(process.execPath, [cli, ...args, "--project", project], { cwd: root })
@@ -40,9 +41,10 @@ test("installs, protects, and removes managed resources", async () => {
     assert.ok(config.mcp.jira)
     await readFile(join(project, ".opencode", "agents", "code-reviewer.md"))
     await readFile(join(project, ".opencode", "commands", "review.md"))
+    await readFile(join(project, ".opencode", "plugins", "toolkit-update-notice.ts"))
 
     const preview = await run(project, "update", "--dry-run")
-    assert.match(preview.stdout, /Version que se aplicaria: 0\.1\.1/)
+    assert.match(preview.stdout, new RegExp(`Version que se aplicaria: ${packageInfo.version.replaceAll(".", "\\.")}`))
     assert.match(preview.stdout, /Sin cambios code-reviewer/)
 
     await appendFile(join(project, ".opencode", "agents", "code-reviewer.md"), "\nLocal change\n")

@@ -139,6 +139,8 @@ node <ruta-al-toolkit>/cli/bin.mjs init \
 
 El comando `review` requiere `code-reviewer`; el CLI incorpora ese agente automaticamente.
 
+El selector de notificaciones activa por defecto `update-notice`. Este plugin comprueba npm al iniciar `opencode` y muestra un aviso cuando existe una version mas reciente del toolkit. Puede desmarcarse durante la instalacion o despues con `configure`.
+
 Los archivos gestionados quedan registrados en el proyecto:
 
 ```text
@@ -159,6 +161,7 @@ npx @ismaeltorres00/opencode-toolkit status     # Ver selecciones y modificacion
 npx @ismaeltorres00/opencode-toolkit check      # Fallar si hay recursos ausentes o modificados
 npx @ismaeltorres00/opencode-toolkit remove --kind scope --name dotnet
 npx @ismaeltorres00/opencode-toolkit remove --kind command --name review
+npx @ismaeltorres00/opencode-toolkit remove --kind plugin --name update-notice
 ```
 
 Los recursos no se actualizan solos. Cuando alguien cambie un agente en el toolkit, debe publicar una nueva version npm. Cada proyecto decide cuando revisar y aplicar esa version con `update`.
@@ -172,6 +175,8 @@ npx @ismaeltorres00/opencode-toolkit@latest update --force
 ```
 
 Al quitar un scope, elimina su URL gestionada de `opencode.jsonc`; al quitar un MCP, elimina solamente su bloque gestionado.
+
+`update-notice` consulta una vez el registro npm en segundo plano, con un timeout de 1.5 segundos. No bloquea OpenCode, no envia contenido del proyecto y no muestra nada si npm no responde o no hay una version mas reciente.
 
 Al actualizar `opencode.jsonc`, conserva las claves de configuracion existentes, pero normaliza el archivo como JSON y elimina sus comentarios. Mantener las reglas de proyecto en `AGENTS.md` evita mezclar instrucciones con esta configuracion gestionada.
 
@@ -209,3 +214,11 @@ Tras cambiar `opencode.json(c)`, agentes, comandos o skills, reinicia OpenCode: 
 ## Publicacion
 
 Consulta [`docs/PUBLISHING.md`](docs/PUBLISHING.md) para publicar el paquete npm, distribuir los catalogos HTTP y resolver requisitos de 2FA.
+
+## Guia De Usuario
+
+Consulta [`docs/USER-GUIDE.md`](docs/USER-GUIDE.md) para instalar, configurar, actualizar y eliminar recursos desde un proyecto consumidor.
+
+## Crear Recursos
+
+En el repositorio central, pide a OpenCode algo como: `Crea una skill de testing para React en el scope frontend` o `Crea un agente para revisar seguridad`. La skill global `toolkit-authoring` guiara la creacion, registros, dependencias, validacion y empaquetado. No debe usarse desde repositorios consumidores.

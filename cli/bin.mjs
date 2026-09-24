@@ -43,6 +43,7 @@ Options:
   --agent <names>      Comma-separated agents for non-interactive use
   --command <names>    Comma-separated commands for non-interactive use
   --mcp <names>        Comma-separated MCP servers for non-interactive use
+  --plugin <names>     Comma-separated project plugins for non-interactive use
   --dry-run            Preview an update without changing the project
   --force              Overwrite or remove locally modified managed files
   --yes                Accept default selections in interactive commands`)
@@ -127,7 +128,7 @@ async function discoverRegistry() {
     }
   }
 
-  return { scopes, agents, commands, mcps }
+  return { scopes, agents, commands, mcps, plugins: { ...manifest.plugins } }
 }
 
 function showLogo() {
@@ -167,6 +168,8 @@ function sourcePath(relativePath) {
 async function loadState() {
   const state = await readJson(statePath, undefined)
   if (!state) throw new Error("El proyecto no esta gestionado. Ejecuta `init` primero.")
+  state.plugins ??= []
+  state.managedPlugins ??= []
   return state
 }
 
@@ -206,9 +209,15 @@ function resolveDependencies(state) {
 
 function resourcesFor(state) {
   return [
-    ...state.agents.map((name) => ["agents", name, registry.agents[name], join(opencodeDirectory, "agents", `${name}.md`)]),
-    ...state.commands.map((name) => ["commands", name, registry.commands[name], join(opencodeDirectory, "commands", `${name}.md`)]),
+    ...state.agents.map((name) => ["agents", name, registry.agents[name], destinationFor("agents", name)]),
+    ...state.commands.map((name) => ["commands", name, registry.commands[name], destinationFor("commands", name)]),
+    ...state.plugins.map((name) => ["plugins", name, registry.plugins[name], destinationFor("plugins", name)]),
   ]
+}
+
+function destinationFor(kind, name) {
+  if (kind === "plugins") return join(opencodeDirectory, registry.plugins[name].destination)
+  return join(opencodeDirectory, kind, `${name}.md`)
 }
 
 async function buildPlan(state, force) {
@@ -216,18 +225,20 @@ async function buildPlan(state, force) {
   assertKnown("agents", state.agents)
   assertKnown("commands", state.commands)
   assertKnown("mcps", state.mcps)
+  assertKnown("plugins", state.plugins)
   resolveDependencies(state)
 
   const previousLock = await readJson(lockPath, { files: {} })
   const previouslyManaged = {
     agents: state.managedAgents ?? [],
     commands: state.managedCommands ?? [],
+    plugins: state.managedPlugins ?? [],
   }
   const removals = []
   const conflicts = []
   for (const [kind, names] of Object.entries(previouslyManaged)) {
     for (const name of names.filter((item) => !state[kind].includes(item))) {
-      const destination = join(opencodeDirectory, kind, `${name}.md`)
+      const destination = destinationFor(kind, name)
       const key = lockKey(destination)
       if (await exists(destination) && previousLock.files[key] !== hash(await readFile(destination)) && !force) {
         conflicts.push(`${destination} tiene cambios locales y se iba a borrar.`)
@@ -272,6 +283,7 @@ async function synchronize(state, { force = false } = {}) {
   state.managedMcps = [...state.mcps]
   state.managedAgents = [...state.agents]
   state.managedCommands = [...state.commands]
+  state.managedPlugins = [...state.plugins]
   await writeState(state, lock)
 }
 
@@ -307,6 +319,8 @@ async function configure(existing) {
   if (!values("command")) commands = await selectResources("Selecciona los comandos", "commands", commands, assumeDefaults)
   let mcps = values("mcp") ?? existing?.mcps ?? []
   if (!values("mcp")) mcps = await selectResources("Selecciona los servidores MCP", "mcps", mcps, assumeDefaults)
+  let plugins = values("plugin") ?? existing?.plugins ?? ["update-notice"]
+  if (!values("plugin")) plugins = await selectResources("Selecciona las notificaciones", "plugins", plugins, assumeDefaults)
 
   return {
     version: 1,
@@ -315,10 +329,12 @@ async function configure(existing) {
     agents,
     commands,
     mcps,
+    plugins,
     managedSkillUrls: existing?.managedSkillUrls ?? [],
     managedMcps: existing?.managedMcps ?? [],
     managedAgents: existing?.managedAgents ?? [],
     managedCommands: existing?.managedCommands ?? [],
+    managedPlugins: existing?.managedPlugins ?? [],
   }
 }
 
@@ -326,8 +342,8 @@ async function removeResource() {
   const state = await loadState()
   const kind = String(flags.get("kind") ?? "")
   const name = String(flags.get("name") ?? "")
-  if (!kind || !name || !["scope", "agent", "command", "mcp"].includes(kind)) {
-    throw new Error("Usa `remove --kind scope|agent|command|mcp --name <nombre>`")
+  if (!kind || !name || !["scope", "agent", "command", "mcp", "plugin"].includes(kind)) {
+    throw new Error("Usa `remove --kind scope|agent|command|mcp|plugin --name <nombre>`")
   }
   const collection = `${kind}s`
   if (!state[collection].includes(name)) throw new Error(`${name} no esta seleccionado como ${kind}.`)
@@ -341,7 +357,7 @@ async function removeResource() {
   if (kind === "agent" && state.commands.some((commandName) => registry.commands[commandName].requires?.agents?.includes(name))) {
     throw new Error(`El agente ${name} es requerido por un comando seleccionado. Elimina primero ese comando.`)
   }
-  const destination = join(opencodeDirectory, collection, `${name}.md`)
+  const destination = destinationFor(collection, name)
   const lock = await readJson(lockPath, { files: {} })
   const key = lockKey(destination)
   if (await exists(destination) && lock.files[key] !== hash(await readFile(destination)) && !flags.has("force")) {
@@ -382,6 +398,7 @@ async function reportStatus(failOnDrift = false) {
   console.log(`Agentes: ${state.agents.join(", ") || "ninguno"}`)
   console.log(`Comandos: ${state.commands.join(", ") || "ninguno"}`)
   console.log(`MCP: ${state.mcps.join(", ") || "ninguno"}`)
+  console.log(`Plugins: ${state.plugins.join(", ") || "ninguno"}`)
   if (drift.length) console.log(`Cambios locales:\n${drift.map((item) => `- ${item}`).join("\n")}`)
   else console.log("Estado sincronizado.")
   if (failOnDrift && drift.length) process.exitCode = 1

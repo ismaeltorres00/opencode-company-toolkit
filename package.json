@@ -15,7 +15,9 @@
     "cli",
     "commands/review.md",
     "docs/PUBLISHING.md",
+    "docs/USER-GUIDE.md",
     "mcp/jira.example.jsonc",
+    "plugins/toolkit-update-notice.ts",
     "toolkit.manifest.json"
   ],
   "scripts": {
