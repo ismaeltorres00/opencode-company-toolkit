@@ -117,7 +117,9 @@ Tras publicarlo en el registro interno, un proyecto nuevo ejecuta:
 npx @ismaeltorres00/opencode-toolkit init
 ```
 
-El asistente muestra el logo corporativo y cinco pasos de teclado. El primero, **Skills para el proyecto**, muestra cada catalogo con las skills que incluye. Despues aparecen agentes y comandos agrupados por categoria, integraciones MCP y notificaciones. Usa flechas para moverte, espacio para marcar y Enter para confirmar. `global` siempre esta incluido; marca `dotnet`, `node`, `frontend` u otros scopes publicados segun el proyecto.
+El asistente muestra el logo corporativo y cinco pasos de teclado. El primero, **Skills para el proyecto**, muestra cada catalogo con las skills que incluye. Despues aparecen agentes y comandos agrupados por categoria, integraciones MCP y notificaciones. Usa flechas para moverte, espacio para marcar y Enter para confirmar. `global` aparece marcado por defecto; mantenlo o marca `dotnet`, `node`, `frontend` u otros scopes publicados segun el proyecto.
+
+Al terminar las selecciones, el CLI muestra un resumen completo, incluyendo los agentes requeridos por los comandos, y solicita confirmacion antes de modificar el proyecto. Usa `--yes` para omitir la confirmacion en automatizaciones.
 
 Las categorias son directorios dentro de `agents/`, `commands/` y `mcp/`; por ejemplo, `agents/calidad-de-codigo/code-reviewer.md`. El selector las deriva de esa estructura, pero el CLI instala agentes y comandos planos para que OpenCode los detecte: `.opencode/agents/code-reviewer.md` y `.opencode/commands/review.md`.
 
@@ -157,6 +159,7 @@ Gestion posterior:
 
 ```bash
 npx @ismaeltorres00/opencode-toolkit configure  # Cambiar selecciones de forma interactiva
+npx @ismaeltorres00/opencode-toolkit list       # Ver todos los recursos disponibles
 npx @ismaeltorres00/opencode-toolkit@latest update --dry-run  # Previsualizar la actualizacion
 npx @ismaeltorres00/opencode-toolkit@latest update            # Aplicar la actualizacion
 npx @ismaeltorres00/opencode-toolkit status     # Ver selecciones y modificaciones locales

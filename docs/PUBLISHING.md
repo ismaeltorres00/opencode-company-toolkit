@@ -109,7 +109,7 @@ El CLI muestra selectores de teclado para:
 - Scopes publicados: `global`, `dotnet`, `node`, `frontend` y cualquier scope nuevo en `catalogs/`.
 - Agentes, comandos y MCP que se quieren instalar.
 
-`global` siempre esta seleccionado. Al marcar `dotnet`, el proyecto registra `global` y `dotnet`. Si se selecciona el comando `review`, instala tambien el agente `code-reviewer` porque es una dependencia. La URL por defecto es `https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs`; no se solicita al usuario.
+`global` aparece marcado por defecto, pero se puede desmarcar. Al marcar `dotnet`, el proyecto registra ese catalogo. Si se selecciona el comando `review`, instala tambien el agente `code-reviewer` porque es una dependencia. La URL por defecto es `https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs`; no se solicita al usuario.
 
 Para publicar las skills en otra URL, el administrador puede indicar el override explicito:
 

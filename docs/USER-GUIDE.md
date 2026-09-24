@@ -16,13 +16,15 @@ El instalador muestra el logo de GAC Travel y cinco pasos claros. El primero es 
 - Espacio para marcar o desmarcar.
 - Enter para confirmar cada selector.
 
+Al terminar, revisa el resumen de recursos y confirma antes de que el instalador escriba cambios. En automatizaciones, `--yes` acepta la confirmacion sin preguntar.
+
 No hay que escribir nombres de scopes, agentes, comandos ni MCP. Tampoco hay que indicar la URL de catalogos en la instalacion normal.
 
 ## Que Seleccionar
 
 ### Scopes
 
-`global` siempre esta incluido. Marca los scopes tecnicos, de dominio o de proyecto que correspondan:
+`global` aparece marcado por defecto. Puedes mantenerlo o seleccionar solo los scopes tecnicos, de dominio o de proyecto que correspondan:
 
 - `dotnet` para proyectos .NET.
 - `node` para proyectos Node.js.
@@ -88,6 +90,14 @@ npx @ismaeltorres00/opencode-toolkit@latest check
 ```
 
 ## Anadir O Quitar Recursos
+
+Para consultar primero todo lo que ofrece el toolkit sin cambiar el proyecto:
+
+```powershell
+npx @ismaeltorres00/opencode-toolkit@latest list
+```
+
+Muestra skills con su catalogo y contenido, ademas de agentes, comandos, MCP y plugins agrupados por categoria.
 
 La forma recomendada es volver a abrir los selectores:
 

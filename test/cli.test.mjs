@@ -19,6 +19,11 @@ async function run(project, ...args) {
 test("installs, protects, and removes managed resources", async () => {
   const project = await mkdtemp(join(tmpdir(), "opencode-toolkit-"))
   try {
+    const listing = await run(project, "list")
+    assert.match(listing.stdout, /Skills/)
+    assert.match(listing.stdout, /CDV Frontend/)
+    assert.match(listing.stdout, /cdv-frontend-review/)
+
     await writeFile(join(project, "opencode.jsonc"), '{\n  // Project setting\n  "share": "manual"\n}\n')
     await run(
       project,
@@ -34,10 +39,7 @@ test("installs, protects, and removes managed resources", async () => {
 
     const config = JSON.parse(await readFile(join(project, "opencode.jsonc"), "utf8"))
     assert.equal(config.share, "manual")
-    assert.deepEqual(config.skills.urls, [
-      "https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs/global/",
-      "https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs/dotnet/",
-    ])
+    assert.deepEqual(config.skills.urls, ["https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs/dotnet/"])
     assert.ok(config.mcp.jira)
     await readFile(join(project, ".opencode", "agents", "code-reviewer.md"))
     await readFile(join(project, ".opencode", "commands", "review.md"))
@@ -67,7 +69,7 @@ test("installs, protects, and removes managed resources", async () => {
 
     await run(project, "remove", "--kind", "scope", "--name", "dotnet", "--force")
     const updatedConfig = JSON.parse(await readFile(join(project, "opencode.jsonc"), "utf8"))
-    assert.deepEqual(updatedConfig.skills.urls, ["https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs/global/"])
+    assert.deepEqual(updatedConfig.skills.urls, [])
     await run(project, "remove", "--kind", "command", "--name", "review")
     await run(project, "check")
   } finally {

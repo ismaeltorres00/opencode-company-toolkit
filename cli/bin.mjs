@@ -3,7 +3,7 @@ import { createHash } from "node:crypto"
 import { access, copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { checkbox, Separator } from "@inquirer/prompts"
+import { checkbox, confirm, Separator } from "@inquirer/prompts"
 import chalk from "chalk"
 
 const sourceRoot = resolve(dirname(dirname(fileURLToPath(import.meta.url))))
@@ -26,27 +26,39 @@ const lockPath = join(opencodeDirectory, "toolkit-lock.json")
 const configPath = join(projectRoot, "opencode.jsonc")
 
 function usage() {
-  console.log(`Usage: opencode-toolkit <command> [options]
+  console.log(`Uso: opencode-toolkit <comando> [opciones]
 
-Commands:
-  init                 Configure a new project interactively
-  configure            Change selected scopes and resources interactively
-  update               Synchronize selected resources with this toolkit version
-  status               Show installed resources and local modifications
-  check                Fail when managed resources are missing or modified
-  remove               Remove a selected resource safely
+Comandos:
+  init                 Configura un proyecto nuevo con un asistente interactivo.
+  configure            Cambia las selecciones de un proyecto ya gestionado.
+  list                 Muestra todos los recursos disponibles por categoria.
+  update               Sincroniza los recursos seleccionados con esta version del toolkit.
+  status               Muestra recursos instalados, version y modificaciones locales.
+  check                Igual que status, pero falla si faltan recursos o fueron modificados.
+  remove               Elimina con seguridad un recurso seleccionado.
+  help                 Muestra esta ayuda.
 
-Options:
-  --project <path>     Project to configure (default: current directory)
-  --catalog-base-url <url> Override the catalog URL configured by the toolkit
-  --scope <names>      Comma-separated scopes for non-interactive use
-  --agent <names>      Comma-separated agents for non-interactive use
-  --command <names>    Comma-separated commands for non-interactive use
-  --mcp <names>        Comma-separated MCP servers for non-interactive use
-  --plugin <names>     Comma-separated project plugins for non-interactive use
-  --dry-run            Preview an update without changing the project
-  --force              Overwrite or remove locally modified managed files
-  --yes                Accept default selections in interactive commands`)
+Opciones:
+  --project <ruta>             Proyecto que se configura (por defecto: directorio actual).
+  --catalog-base-url <url>     Sustituye la URL de catalogos configurada por el toolkit.
+  --scope <nombres>            Catalogos de skills separados por coma. Ejemplo: global,frontend.
+  --agent <nombres>            Agentes separados por coma. Ejemplo: cdv-api-reviewer.
+  --command <nombres>          Comandos separados por coma. Instala sus agentes requeridos.
+  --mcp <nombres>              Servidores MCP separados por coma.
+  --plugin <nombres>           Plugins de proyecto separados por coma.
+  --dry-run                    Previsualiza update sin modificar el proyecto.
+  --force                      Sobrescribe o elimina recursos gestionados con cambios locales.
+  --yes                        Acepta selecciones y confirmacion sin preguntar.
+  --kind <tipo> --name <id>    Requerido por remove. Tipos: scope, agent, command, mcp, plugin.
+
+Flujos habituales:
+  opencode-toolkit list
+  opencode-toolkit init
+  opencode-toolkit configure
+  opencode-toolkit remove --kind command --name cdv-frontend-review
+  opencode-toolkit update --dry-run
+
+Usa init o configure para revisar un resumen final antes de aplicar cambios.`)
 }
 
 function values(name) {
@@ -170,16 +182,17 @@ async function selectResources(message, kind, selected, assumeDefaults) {
     categories.set(category, [...(categories.get(category) ?? []), entry])
   }
   const choiceFor = ([name, item]) => ({
-    name: chalk.bold(name),
+    name: `  ${chalk.bold(name)}`,
     description: resourceDescription(kind, item),
     value: name,
     checked: selected.includes(name),
-    disabled: kind === "scopes" && name === "global" ? "Siempre incluido" : false,
+    disabled: false,
   })
   const choices = hasCategories
-    ? [...categories].flatMap(([category, categoryEntries]) => [new Separator(chalk.bold(category)), ...categoryEntries.map(choiceFor)])
+    ? [...categories].flatMap(([category, categoryEntries]) => [new Separator(`\n${chalk.bgBlue.white.bold(` ${category} `)}`), ...categoryEntries.map(choiceFor)])
     : entries.map(choiceFor)
-  return checkbox({ message, choices, loop: false })
+  const pageSize = choices.length + (hasCategories ? categories.size : 0)
+  return checkbox({ message, choices, pageSize, loop: false })
 }
 
 function resourceDescription(kind, item) {
@@ -190,7 +203,8 @@ function resourceDescription(kind, item) {
 }
 
 function categoryFor(kind, item) {
-  if (!item.source?.startsWith(`${kind}/`)) return "Otros"
+  const sourceDirectory = kind === "mcps" ? "mcp" : kind
+  if (!item.source?.startsWith(`${sourceDirectory}/`)) return "Otros"
   const directories = item.source.split("/").slice(1, -1)
   return directories.length ? directories.map(formatCategory).join(" / ") : "Otros"
 }
@@ -200,6 +214,41 @@ function formatCategory(directory) {
     if (["api", "cdv"].includes(word)) return word.toUpperCase()
     return `${word[0].toUpperCase()}${word.slice(1)}`
   }).join(" ")
+}
+
+function listResources(kind, title) {
+  console.log(`\n${chalk.blue.bold(title)}`)
+  const entries = Object.entries(registry[kind])
+  if (kind === "scopes") {
+    for (const [name, item] of entries) {
+      console.log(`  ${chalk.bold(name)} - ${item.description}`)
+      console.log(`    Incluye: ${item.skills?.join(", ") || "sin skills"}`)
+    }
+    return
+  }
+  const categories = new Map()
+  for (const entry of entries) {
+    const category = categoryFor(kind, entry[1])
+    categories.set(category, [...(categories.get(category) ?? []), entry])
+  }
+  if (categories.size === 1 && categories.has("Otros")) {
+    for (const [name, item] of entries) console.log(`  ${name} - ${resourceDescription(kind, item).replaceAll("\n", "; ")}`)
+    return
+  }
+  for (const [category, categoryEntries] of categories) {
+    const label = category === "Otros" ? "Sin categoria" : category
+    console.log(`\n  ${chalk.bgBlue.white.bold(` ${label} `)}`)
+    for (const [name, item] of categoryEntries) console.log(`    ${name} - ${resourceDescription(kind, item).replaceAll("\n", "; ")}`)
+  }
+}
+
+function listResourcesAvailable() {
+  console.log(chalk.blue.bold("Recursos disponibles"))
+  listResources("scopes", "Skills")
+  listResources("agents", "Agentes")
+  listResources("commands", "Comandos")
+  listResources("mcps", "Integraciones MCP")
+  listResources("plugins", "Notificaciones")
 }
 
 function urlFor(scope, state) {
@@ -252,6 +301,23 @@ function resolveDependencies(state) {
     const requiredAgents = registry.commands[name].requires?.agents ?? []
     for (const agent of requiredAgents) if (!state.agents.includes(agent)) state.agents.push(agent)
   }
+}
+
+function showSelectionSummary(state) {
+  resolveDependencies(state)
+  console.log(`\n${chalk.blue.bold("Resumen de la configuracion")}`)
+  console.log(`  Skills: ${state.scopes.join(", ") || "ninguna"}`)
+  console.log(`  Agentes: ${state.agents.join(", ") || "ninguno"}`)
+  console.log(`  Comandos: ${state.commands.join(", ") || "ninguno"}`)
+  console.log(`  MCP: ${state.mcps.join(", ") || "ninguno"}`)
+  console.log(`  Notificaciones: ${state.plugins.join(", ") || "ninguna"}`)
+}
+
+async function confirmConfiguration(state) {
+  resolveDependencies(state)
+  if (flags.has("yes")) return true
+  showSelectionSummary(state)
+  return confirm({ message: "Aplicar esta configuracion al proyecto?", default: true })
 }
 
 function resourcesFor(state) {
@@ -373,8 +439,6 @@ async function configure(existing) {
     if (!assumeDefaults) showSection("1", "Skills para el proyecto", "Cada grupo es un catalogo. Selecciona los que apliquen; debajo de cada uno veras las skills incluidas.")
     scopes = await selectResources("Selecciona los catalogos de skills", "scopes", scopes, assumeDefaults)
   }
-  if (scopes.length && !scopes.includes("global")) scopes = ["global", ...scopes]
-
   let agents = values("agent") ?? existing?.agents ?? []
   if (!values("agent")) {
     if (!assumeDefaults) showSection("2", "Agentes", "Elige roles especializados. Estan agrupados por categoria.")
@@ -482,8 +546,12 @@ async function reportStatus(failOnDrift = false) {
 
 try {
   if (command === "help" || flags.has("help")) usage()
-  else if (command === "init") await synchronize(await configure(undefined), { force: flags.has("force") })
-  else if (command === "configure") await synchronize(await configure(await loadState()), { force: flags.has("force") })
+  else if (command === "init" || command === "configure") {
+    const state = await configure(command === "configure" ? await loadState() : undefined)
+    if (await confirmConfiguration(state)) await synchronize(state, { force: flags.has("force") })
+    else console.log("Configuracion cancelada.")
+  }
+  else if (command === "list") listResourcesAvailable()
   else if (command === "update") {
     const state = await loadState()
     if (flags.has("dry-run")) await previewUpdate(state)
