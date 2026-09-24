@@ -26,9 +26,9 @@ Use only when the active repository is the central OpenCode toolkit. Create reus
 | Request | Create | Register |
 |---|---|---|
 | Reusable guidance | `catalogs/<scope>/<name>/SKILL.md` | `<scope>/index.json` |
-| Agent role | `agents/<name>.md` | `toolkit.manifest.json` if it has metadata or dependencies |
-| Repeated operation | `commands/<name>.md` | Declare required agents in `toolkit.manifest.json` |
-| External integration | `mcp/<name>.example.jsonc` | `toolkit.manifest.json`; use a placeholder URL and OAuth or environment references |
+| Agent role | `agents/<category>/<name>.md` | `toolkit.manifest.json`; the directory groups the installer selector |
+| Repeated operation | `commands/<category>/<name>.md` | Declare required agents in `toolkit.manifest.json`; the directory groups the selector |
+| External integration | `mcp/<category>/<name>.example.jsonc` | `toolkit.manifest.json`; use a placeholder URL and OAuth or environment references |
 | New context | `catalogs/<scope>/index.json` | `toolkit.manifest.json` description when needed |
 
 ## Execution Steps

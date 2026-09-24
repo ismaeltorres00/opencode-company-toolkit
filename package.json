@@ -13,10 +13,10 @@
     "agents",
     "catalogs",
     "cli",
-    "commands/review.md",
+    "commands",
     "docs/PUBLISHING.md",
     "docs/USER-GUIDE.md",
-    "mcp/jira.example.jsonc",
+    "mcp",
     "plugins/toolkit-update-notice.ts",
     "toolkit.manifest.json"
   ],

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto"
 import { access, copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { checkbox } from "@inquirer/prompts"
+import { checkbox, Separator } from "@inquirer/prompts"
 import chalk from "chalk"
 
 const sourceRoot = resolve(dirname(dirname(fileURLToPath(import.meta.url))))
@@ -99,36 +99,48 @@ async function discoverRegistry() {
   const catalogs = join(sourceRoot, "catalogs")
   for (const entry of await readdir(catalogs, { withFileTypes: true })) {
     if (!entry.isDirectory() || !(await exists(join(catalogs, entry.name, "index.json")))) continue
+    const index = JSON.parse(await readFile(join(catalogs, entry.name, "index.json"), "utf8"))
     scopes[entry.name] = {
       description: manifest.scopes[entry.name]?.description ?? `Capacidades del scope ${entry.name}`,
+      skills: index.skills?.map((skill) => skill.name) ?? [],
     }
   }
 
   const agents = { ...manifest.agents }
-  for (const entry of await readdir(join(sourceRoot, "agents"), { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith(".md")) {
-      const name = entry.name.slice(0, -3)
-      agents[name] ??= { source: `agents/${entry.name}`, description: `Agente ${name}` }
+  for (const source of await resourceFiles("agents", ".md")) {
+    const name = source.split("/").at(-1).slice(0, -3)
+    if (!agents[name]) {
+      agents[name] = { source, description: `Agente ${name}` }
     }
   }
 
   const commands = { ...manifest.commands }
-  for (const entry of await readdir(join(sourceRoot, "commands"), { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith(".md")) {
-      const name = entry.name.slice(0, -3)
-      commands[name] ??= { source: `commands/${entry.name}`, description: `Comando /${name}` }
+  for (const source of await resourceFiles("commands", ".md")) {
+    const name = source.split("/").at(-1).slice(0, -3)
+    if (!commands[name]) {
+      commands[name] = { source, description: `Comando /${name}` }
     }
   }
 
   const mcps = { ...manifest.mcps }
-  for (const entry of await readdir(join(sourceRoot, "mcp"), { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith(".example.jsonc")) {
-      const name = entry.name.replace(".example.jsonc", "")
-      mcps[name] ??= { source: `mcp/${entry.name}`, key: name, description: `Servidor MCP ${name}` }
+  for (const source of await resourceFiles("mcp", ".example.jsonc")) {
+    const name = source.split("/").at(-1).replace(".example.jsonc", "")
+    if (!mcps[name]) {
+      mcps[name] = { source, key: name, description: `Servidor MCP ${name}` }
     }
   }
 
   return { scopes, agents, commands, mcps, plugins: { ...manifest.plugins } }
+}
+
+async function resourceFiles(directory, suffix) {
+  const files = []
+  for (const entry of await readdir(join(sourceRoot, directory), { withFileTypes: true })) {
+    const path = join(directory, entry.name)
+    if (entry.isDirectory()) files.push(...await resourceFiles(path, suffix))
+    else if (entry.isFile() && entry.name.endsWith(suffix)) files.push(path.replaceAll("\\", "/"))
+  }
+  return files
 }
 
 function showLogo() {
@@ -144,15 +156,50 @@ ${chalk.gray("                         OpenCode Toolkit")}
 `)
 }
 
+function showSection(number, title, description) {
+  console.log(`\n${chalk.blue.bold(`${number}. ${title}`)}\n${chalk.gray(description)}`)
+}
+
 async function selectResources(message, kind, selected, assumeDefaults) {
   if (assumeDefaults) return selected
-  const choices = Object.entries(registry[kind]).map(([name, item]) => ({
-    name: `${name} ${chalk.dim(`- ${item.description ?? kind}`)}`,
+  const entries = Object.entries(registry[kind])
+  const hasCategories = entries.some(([, item]) => categoryFor(kind, item) !== "Otros")
+  const categories = new Map()
+  for (const entry of entries) {
+    const category = categoryFor(kind, entry[1])
+    categories.set(category, [...(categories.get(category) ?? []), entry])
+  }
+  const choiceFor = ([name, item]) => ({
+    name: chalk.bold(name),
+    description: resourceDescription(kind, item),
     value: name,
     checked: selected.includes(name),
     disabled: kind === "scopes" && name === "global" ? "Siempre incluido" : false,
-  }))
+  })
+  const choices = hasCategories
+    ? [...categories].flatMap(([category, categoryEntries]) => [new Separator(chalk.bold(category)), ...categoryEntries.map(choiceFor)])
+    : entries.map(choiceFor)
   return checkbox({ message, choices, loop: false })
+}
+
+function resourceDescription(kind, item) {
+  const details = [item.description ?? kind]
+  if (kind === "scopes" && item.skills?.length) details.push(`Incluye: ${item.skills.join(", ")}`)
+  if (kind === "commands" && item.requires?.agents?.length) details.push(`Incluye agente: ${item.requires.agents.join(", ")}`)
+  return details.join("\n")
+}
+
+function categoryFor(kind, item) {
+  if (!item.source?.startsWith(`${kind}/`)) return "Otros"
+  const directories = item.source.split("/").slice(1, -1)
+  return directories.length ? directories.map(formatCategory).join(" / ") : "Otros"
+}
+
+function formatCategory(directory) {
+  return directory.split("-").map((word) => {
+    if (["api", "cdv"].includes(word)) return word.toUpperCase()
+    return `${word[0].toUpperCase()}${word.slice(1)}`
+  }).join(" ")
 }
 
 function urlFor(scope, state) {
@@ -220,6 +267,10 @@ function destinationFor(kind, name) {
   return join(opencodeDirectory, kind, `${name}.md`)
 }
 
+function categorizedDestinationFor(kind, name) {
+  return join(opencodeDirectory, registry[kind][name].source)
+}
+
 async function buildPlan(state, force) {
   assertKnown("scopes", state.scopes)
   assertKnown("agents", state.agents)
@@ -248,7 +299,15 @@ async function buildPlan(state, force) {
   }
 
   const resources = resourcesFor(state)
-  for (const [, , definition, destination] of resources) {
+  for (const [kind, name, definition, destination] of resources) {
+    const categorizedDestination = categorizedDestinationFor(kind, name)
+    const categorizedKey = lockKey(categorizedDestination)
+    if (categorizedDestination !== destination && previousLock.files[categorizedKey]) {
+      if (await exists(categorizedDestination) && previousLock.files[categorizedKey] !== hash(await readFile(categorizedDestination)) && !force) {
+        conflicts.push(`${categorizedDestination} tiene cambios locales y se iba a mover.`)
+      }
+      removals.push([kind, name, categorizedDestination])
+    }
     const source = sourcePath(definition.source)
     const existing = await exists(destination) ? await readFile(destination) : undefined
     const key = lockKey(destination)
@@ -310,17 +369,32 @@ async function configure(existing) {
   if (!assumeDefaults) showLogo()
   let scopes = values("scope") ?? existing?.scopes ?? ["global"]
   assertKnown("scopes", scopes)
-  if (!values("scope")) scopes = await selectResources("Selecciona los scopes para este proyecto", "scopes", scopes, assumeDefaults)
+  if (!values("scope")) {
+    if (!assumeDefaults) showSection("1", "Skills para el proyecto", "Cada grupo es un catalogo. Selecciona los que apliquen; debajo de cada uno veras las skills incluidas.")
+    scopes = await selectResources("Selecciona los catalogos de skills", "scopes", scopes, assumeDefaults)
+  }
   if (scopes.length && !scopes.includes("global")) scopes = ["global", ...scopes]
 
   let agents = values("agent") ?? existing?.agents ?? []
-  if (!values("agent")) agents = await selectResources("Selecciona los agentes", "agents", agents, assumeDefaults)
+  if (!values("agent")) {
+    if (!assumeDefaults) showSection("2", "Agentes", "Elige roles especializados. Estan agrupados por categoria.")
+    agents = await selectResources("Selecciona los agentes", "agents", agents, assumeDefaults)
+  }
   let commands = values("command") ?? existing?.commands ?? []
-  if (!values("command")) commands = await selectResources("Selecciona los comandos", "commands", commands, assumeDefaults)
+  if (!values("command")) {
+    if (!assumeDefaults) showSection("3", "Comandos", "Elige acciones reutilizables. Cada comando indica el agente que instala cuando lo necesita.")
+    commands = await selectResources("Selecciona los comandos", "commands", commands, assumeDefaults)
+  }
   let mcps = values("mcp") ?? existing?.mcps ?? []
-  if (!values("mcp")) mcps = await selectResources("Selecciona los servidores MCP", "mcps", mcps, assumeDefaults)
+  if (!values("mcp")) {
+    if (!assumeDefaults) showSection("4", "Integraciones MCP", "Conecta solo los servicios externos que el proyecto necesite.")
+    mcps = await selectResources("Selecciona los servidores MCP", "mcps", mcps, assumeDefaults)
+  }
   let plugins = values("plugin") ?? existing?.plugins ?? ["update-notice"]
-  if (!values("plugin")) plugins = await selectResources("Selecciona las notificaciones", "plugins", plugins, assumeDefaults)
+  if (!values("plugin")) {
+    if (!assumeDefaults) showSection("5", "Notificaciones", "Activa o desactiva los avisos del toolkit.")
+    plugins = await selectResources("Selecciona las notificaciones", "plugins", plugins, assumeDefaults)
+  }
 
   return {
     version: 1,
@@ -357,8 +431,10 @@ async function removeResource() {
   if (kind === "agent" && state.commands.some((commandName) => registry.commands[commandName].requires?.agents?.includes(name))) {
     throw new Error(`El agente ${name} es requerido por un comando seleccionado. Elimina primero ese comando.`)
   }
-  const destination = destinationFor(collection, name)
   const lock = await readJson(lockPath, { files: {} })
+  const destination = lock.files[lockKey(destinationFor(collection, name))]
+    ? destinationFor(collection, name)
+    : categorizedDestinationFor(collection, name)
   const key = lockKey(destination)
   if (await exists(destination) && lock.files[key] !== hash(await readFile(destination)) && !flags.has("force")) {
     throw new Error(`${destination} tiene cambios locales. Usa --force para borrarlo.`)

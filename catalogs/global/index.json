@@ -1,7 +1,7 @@
 {
   "skills": [
     {
-      "name": "jira",
+      "name": "jira-task-global",
       "version": "1",
       "files": ["SKILL.md"]
     },

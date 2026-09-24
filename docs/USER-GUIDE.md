@@ -10,7 +10,7 @@ En la raiz del proyecto:
 npx @ismaeltorres00/opencode-toolkit@latest init
 ```
 
-El instalador muestra el logo de GAC Travel y cuatro selectores. Usa:
+El instalador muestra el logo de GAC Travel y cinco pasos claros. El primero es **Skills para el proyecto**: cada catalogo muestra las skills que incluye. Despues aparecen agentes y comandos agrupados por categoria, integraciones MCP y notificaciones. Usa:
 
 - Flechas arriba y abajo para moverte.
 - Espacio para marcar o desmarcar.
@@ -33,15 +33,15 @@ Los scopes determinan las skills remotas disponibles en OpenCode. Un proyecto .N
 
 ### Agentes
 
-Los agentes se copian a `.opencode/agents/`. Selecciona solo los que el proyecto necesite.
+Los agentes se copian planos a `.opencode/agents/`. Selecciona solo los que el proyecto necesite. El selector los agrupa visualmente por categoria, que solo existe en el toolkit.
 
 ### Comandos
 
-Los comandos se copian a `.opencode/commands/`. El comando `review` depende del agente `code-reviewer`; al marcarlo, el instalador incluye automaticamente su agente.
+Los comandos se copian planos a `.opencode/commands/`. El selector los agrupa visualmente por categoria, que solo existe en el toolkit. El comando `review` depende del agente `code-reviewer`; al marcarlo, el instalador incluye automaticamente su agente.
 
 ### MCP
 
-Los MCP se añaden al bloque `mcp` de `opencode.jsonc`. El ejemplo `jira` usa una URL de ejemplo; debe sustituirse por el endpoint corporativo real antes de utilizar la integracion.
+Los MCP se añaden al bloque `mcp` de `opencode.jsonc` y el selector los agrupa visualmente por categoria. El ejemplo `jira` usa una URL de ejemplo; debe sustituirse por el endpoint corporativo real antes de utilizar la integracion.
 
 ### Notificaciones
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { execFile as execFileCallback } from "node:child_process"
-import { appendFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { appendFile, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { promisify } from "node:util"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
@@ -26,7 +26,7 @@ test("installs, protects, and removes managed resources", async () => {
       "--scope",
       "dotnet",
       "--command",
-      "review",
+      "review,cdv-frontend-review",
       "--mcp",
       "jira",
       "--yes",
@@ -41,13 +41,28 @@ test("installs, protects, and removes managed resources", async () => {
     assert.ok(config.mcp.jira)
     await readFile(join(project, ".opencode", "agents", "code-reviewer.md"))
     await readFile(join(project, ".opencode", "commands", "review.md"))
+    await readFile(join(project, ".opencode", "agents", "cdv-frontend-reviewer.md"))
+    await readFile(join(project, ".opencode", "commands", "cdv-frontend-review.md"))
     await readFile(join(project, ".opencode", "plugins", "toolkit-update-notice.ts"))
 
     const preview = await run(project, "update", "--dry-run")
     assert.match(preview.stdout, new RegExp(`Version que se aplicaria: ${packageInfo.version.replaceAll(".", "\\.")}`))
     assert.match(preview.stdout, /Sin cambios code-reviewer/)
 
-    await appendFile(join(project, ".opencode", "agents", "code-reviewer.md"), "\nLocal change\n")
+    const agent = join(project, ".opencode", "agents", "code-reviewer.md")
+    const categorizedAgent = join(project, ".opencode", "agents", "calidad-de-codigo", "code-reviewer.md")
+    await mkdir(join(project, ".opencode", "agents", "calidad-de-codigo"), { recursive: true })
+    await rename(agent, categorizedAgent)
+    const lockPath = join(project, ".opencode", "toolkit-lock.json")
+    const lock = JSON.parse(await readFile(lockPath, "utf8"))
+    lock.files[".opencode/agents/calidad-de-codigo/code-reviewer.md"] = lock.files[".opencode/agents/code-reviewer.md"]
+    delete lock.files[".opencode/agents/code-reviewer.md"]
+    await writeFile(lockPath, `${JSON.stringify(lock, null, 2)}\n`)
+    await run(project, "update")
+    await readFile(agent)
+    await assert.rejects(readFile(categorizedAgent))
+
+    await appendFile(agent, "\nLocal change\n")
     await assert.rejects(run(project, "update"), /cambios locales/)
 
     await run(project, "remove", "--kind", "scope", "--name", "dotnet", "--force")

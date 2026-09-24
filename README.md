@@ -117,7 +117,9 @@ Tras publicarlo en el registro interno, un proyecto nuevo ejecuta:
 npx @ismaeltorres00/opencode-toolkit init
 ```
 
-El asistente muestra el logo corporativo y selectores de teclado. Usa flechas para moverte, espacio para marcar y Enter para confirmar. `global` siempre esta incluido; marca `dotnet`, `node`, `frontend` u otros scopes publicados segun el proyecto. El usuario puede marcar agentes, comandos y MCP sin escribir nombres ni URLs.
+El asistente muestra el logo corporativo y cinco pasos de teclado. El primero, **Skills para el proyecto**, muestra cada catalogo con las skills que incluye. Despues aparecen agentes y comandos agrupados por categoria, integraciones MCP y notificaciones. Usa flechas para moverte, espacio para marcar y Enter para confirmar. `global` siempre esta incluido; marca `dotnet`, `node`, `frontend` u otros scopes publicados segun el proyecto.
+
+Las categorias son directorios dentro de `agents/`, `commands/` y `mcp/`; por ejemplo, `agents/calidad-de-codigo/code-reviewer.md`. El selector las deriva de esa estructura, pero el CLI instala agentes y comandos planos para que OpenCode los detecte: `.opencode/agents/code-reviewer.md` y `.opencode/commands/review.md`.
 
 La URL de catalogos por defecto es `https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs`. Solo es necesario usar `--catalog-base-url` si se publica el catalogo en otro host.
 
@@ -182,7 +184,7 @@ Al actualizar `opencode.jsonc`, conserva las claves de configuracion existentes,
 
 ## MCP de Jira
 
-`mcp/jira.example.jsonc` es el recurso que instala el CLI al seleccionar Jira. Sustituye la URL de ejemplo por la del servidor MCP corporativo antes de distribuir el toolkit:
+`mcp/gestion-del-trabajo/jira.example.jsonc` es el recurso que instala el CLI al seleccionar Jira. Sustituye la URL de ejemplo por la del servidor MCP corporativo antes de distribuir el toolkit:
 
 ```jsonc
 {

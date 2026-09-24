@@ -17,22 +17,44 @@
   },
   "agents": {
     "code-reviewer": {
-      "source": "agents/code-reviewer.md",
+      "source": "agents/calidad-de-codigo/code-reviewer.md",
       "description": "Revision de codigo en modo solo lectura"
+    },
+    "cdv-frontend-reviewer": {
+      "source": "agents/cdv-frontend/cdv-frontend-reviewer.md",
+      "description": "Revision de componentes y experiencia frontend de CDV"
+    },
+    "cdv-api-reviewer": {
+      "source": "agents/cdv-api/cdv-api-reviewer.md",
+      "description": "Revision de contratos y seguridad de APIs de CDV"
     }
   },
   "commands": {
     "review": {
-      "source": "commands/review.md",
+      "source": "commands/calidad-de-codigo/review.md",
       "description": "Ejecuta una revision del diff actual",
       "requires": {
         "agents": ["code-reviewer"]
+      }
+    },
+    "cdv-frontend-review": {
+      "source": "commands/cdv-frontend/cdv-frontend-review.md",
+      "description": "Revisa los cambios frontend de CDV",
+      "requires": {
+        "agents": ["cdv-frontend-reviewer"]
+      }
+    },
+    "cdv-api-review": {
+      "source": "commands/cdv-api/cdv-api-review.md",
+      "description": "Revisa los cambios de API de CDV",
+      "requires": {
+        "agents": ["cdv-api-reviewer"]
       }
     }
   },
   "mcps": {
     "jira": {
-      "source": "mcp/jira.example.jsonc",
+      "source": "mcp/gestion-del-trabajo/jira.example.jsonc",
       "key": "jira",
       "description": "Integracion remota con Jira"
     }
