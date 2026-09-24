@@ -1,6 +1,7 @@
 {
   "skills": [
     {"name": "jira", "version": "1", "files": ["jira.md"]},
-    {"name": "git-workflow", "version": "1", "files": ["git-workflow.md"]}
+    {"name": "git-workflow", "version": "1", "files": ["git-workflow.md"]},
+    {"name": "jira-task-global", "version": "1", "files": ["SKILL.md"]}
   ]
 }
