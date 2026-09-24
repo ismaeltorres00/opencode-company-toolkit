@@ -22,8 +22,6 @@ test("installs, protects, and removes managed resources", async () => {
     await run(
       project,
       "init",
-      "--catalog-base-url",
-      "https://ai.example.com/skills",
       "--scope",
       "dotnet",
       "--command",
@@ -36,19 +34,23 @@ test("installs, protects, and removes managed resources", async () => {
     const config = JSON.parse(await readFile(join(project, "opencode.jsonc"), "utf8"))
     assert.equal(config.share, "manual")
     assert.deepEqual(config.skills.urls, [
-      "https://ai.example.com/skills/global/",
-      "https://ai.example.com/skills/dotnet/",
+      "https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs/global/",
+      "https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs/dotnet/",
     ])
     assert.ok(config.mcp.jira)
     await readFile(join(project, ".opencode", "agents", "code-reviewer.md"))
     await readFile(join(project, ".opencode", "commands", "review.md"))
+
+    const preview = await run(project, "update", "--dry-run")
+    assert.match(preview.stdout, /Version que se aplicaria: 0\.1\.1/)
+    assert.match(preview.stdout, /Sin cambios code-reviewer/)
 
     await appendFile(join(project, ".opencode", "agents", "code-reviewer.md"), "\nLocal change\n")
     await assert.rejects(run(project, "update"), /cambios locales/)
 
     await run(project, "remove", "--kind", "scope", "--name", "dotnet", "--force")
     const updatedConfig = JSON.parse(await readFile(join(project, "opencode.jsonc"), "utf8"))
-    assert.deepEqual(updatedConfig.skills.urls, ["https://ai.example.com/skills/global/"])
+    assert.deepEqual(updatedConfig.skills.urls, ["https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs/global/"])
     await run(project, "remove", "--kind", "command", "--name", "review")
     await run(project, "check")
   } finally {

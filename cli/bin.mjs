@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto"
-import { access, copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises"
-import { createInterface } from "node:readline/promises"
-import { stdin, stdout } from "node:process"
+import { access, copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { checkbox } from "@inquirer/prompts"
+import chalk from "chalk"
 
 const sourceRoot = resolve(dirname(dirname(fileURLToPath(import.meta.url))))
 const manifest = JSON.parse(await readFile(join(sourceRoot, "toolkit.manifest.json"), "utf8"))
 const packageInfo = JSON.parse(await readFile(join(sourceRoot, "package.json"), "utf8"))
+const registry = await discoverRegistry()
 const args = process.argv.slice(2)
 const command = args.find((value) => !value.startsWith("--")) ?? "help"
 const flags = new Map()
@@ -37,11 +38,12 @@ Commands:
 
 Options:
   --project <path>     Project to configure (default: current directory)
-  --catalog-base-url <url>
+  --catalog-base-url <url> Override the catalog URL configured by the toolkit
   --scope <names>      Comma-separated scopes for non-interactive use
   --agent <names>      Comma-separated agents for non-interactive use
   --command <names>    Comma-separated commands for non-interactive use
   --mcp <names>        Comma-separated MCP servers for non-interactive use
+  --dry-run            Preview an update without changing the project
   --force              Overwrite or remove locally modified managed files
   --yes                Accept default selections in interactive commands`)
 }
@@ -85,25 +87,71 @@ async function readJson(path, fallback) {
   return (await exists(path)) ? JSON.parse(await readFile(path, "utf8")) : fallback
 }
 
-async function ask(question, defaultValue) {
-  const prompt = createInterface({ input: stdin, output: stdout })
-  const answer = await prompt.question(defaultValue ? `${question} [${defaultValue}]: ` : `${question}: `)
-  prompt.close()
-  return answer.trim() || defaultValue
-}
-
-async function select(question, options, selected, assumeDefaults) {
-  console.log(`\n${question}`)
-  for (const [name, description] of options) console.log(`  ${selected.includes(name) ? "[x]" : "[ ]"} ${name} - ${description}`)
-  if (assumeDefaults) return selected
-  const answer = await ask("Escribe nombres separados por coma, vacio para mantener la seleccion", selected.join(","))
-  return answer.split(",").map((value) => value.trim()).filter(Boolean)
-}
-
 function assertKnown(kind, selected) {
-  const available = manifest[kind]
+  const available = registry[kind]
   const invalid = selected.filter((name) => !available[name])
   if (invalid.length) throw new Error(`${kind} desconocidos: ${invalid.join(", ")}`)
+}
+
+async function discoverRegistry() {
+  const scopes = {}
+  const catalogs = join(sourceRoot, "catalogs")
+  for (const entry of await readdir(catalogs, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !(await exists(join(catalogs, entry.name, "index.json")))) continue
+    scopes[entry.name] = {
+      description: manifest.scopes[entry.name]?.description ?? `Capacidades del scope ${entry.name}`,
+    }
+  }
+
+  const agents = { ...manifest.agents }
+  for (const entry of await readdir(join(sourceRoot, "agents"), { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith(".md")) {
+      const name = entry.name.slice(0, -3)
+      agents[name] ??= { source: `agents/${entry.name}`, description: `Agente ${name}` }
+    }
+  }
+
+  const commands = { ...manifest.commands }
+  for (const entry of await readdir(join(sourceRoot, "commands"), { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith(".md")) {
+      const name = entry.name.slice(0, -3)
+      commands[name] ??= { source: `commands/${entry.name}`, description: `Comando /${name}` }
+    }
+  }
+
+  const mcps = { ...manifest.mcps }
+  for (const entry of await readdir(join(sourceRoot, "mcp"), { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith(".example.jsonc")) {
+      const name = entry.name.replace(".example.jsonc", "")
+      mcps[name] ??= { source: `mcp/${entry.name}`, key: name, description: `Servidor MCP ${name}` }
+    }
+  }
+
+  return { scopes, agents, commands, mcps }
+}
+
+function showLogo() {
+  console.log(`
+${chalk.blue("   ██████╗  █████╗  ██████╗    ████████╗██████╗  █████╗ ██╗   ██╗███████╗██╗")}
+${chalk.blue("  ██╔════╝ ██╔══██╗██╔════╝    ╚══██╔══╝██╔══██╗██╔══██╗██║   ██║██╔════╝██║")}
+${chalk.blue("  ██║  ███╗███████║██║             ██║   ██████╔╝███████║██║   ██║█████╗  ██║")}
+${chalk.blue("  ██║   ██║██╔══██║██║             ██║   ██╔══██╗██╔══██║╚██╗ ██╔╝██╔══╝  ██║")}
+${chalk.blue("  ╚██████╔╝██║  ██║╚██████╗        ██║   ██║  ██║██║  ██║ ╚████╔╝ ███████╗███████╗")}
+${chalk.blue("   ╚═════╝ ╚═╝  ╚═╝ ╚═════╝        ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚══════╝")}
+
+${chalk.gray("                         OpenCode Toolkit")}
+`)
+}
+
+async function selectResources(message, kind, selected, assumeDefaults) {
+  if (assumeDefaults) return selected
+  const choices = Object.entries(registry[kind]).map(([name, item]) => ({
+    name: `${name} ${chalk.dim(`- ${item.description ?? kind}`)}`,
+    value: name,
+    checked: selected.includes(name),
+    disabled: kind === "scopes" && name === "global" ? "Siempre incluido" : false,
+  }))
+  return checkbox({ message, choices, loop: false })
 }
 
 function urlFor(scope, state) {
@@ -137,11 +185,11 @@ async function mergeConfig(state, selectedMcps) {
   config.skills.urls = [...new Set([...config.skills.urls.filter((url) => !state.managedSkillUrls?.includes(url)), ...managedUrls])]
   config.mcp ??= {}
 
-  for (const [name, definition] of Object.entries(manifest.mcps)) {
+  for (const [name, definition] of Object.entries(registry.mcps)) {
     if (state.managedMcps?.includes(name) && !selectedMcps.includes(name)) delete config.mcp[definition.key]
   }
   for (const name of selectedMcps) {
-    const definition = manifest.mcps[name]
+    const definition = registry.mcps[name]
     const source = jsonc(await readFile(sourcePath(definition.source), "utf8"))
     config.mcp[definition.key] = source.mcp[definition.key]
   }
@@ -149,50 +197,73 @@ async function mergeConfig(state, selectedMcps) {
   await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`)
 }
 
-async function synchronize(state, { force = false } = {}) {
+function resolveDependencies(state) {
+  for (const name of state.commands) {
+    const requiredAgents = registry.commands[name].requires?.agents ?? []
+    for (const agent of requiredAgents) if (!state.agents.includes(agent)) state.agents.push(agent)
+  }
+}
+
+function resourcesFor(state) {
+  return [
+    ...state.agents.map((name) => ["agents", name, registry.agents[name], join(opencodeDirectory, "agents", `${name}.md`)]),
+    ...state.commands.map((name) => ["commands", name, registry.commands[name], join(opencodeDirectory, "commands", `${name}.md`)]),
+  ]
+}
+
+async function buildPlan(state, force) {
   assertKnown("scopes", state.scopes)
   assertKnown("agents", state.agents)
   assertKnown("commands", state.commands)
   assertKnown("mcps", state.mcps)
-  for (const name of state.commands) {
-    const requiredAgents = manifest.commands[name].requires?.agents ?? []
-    for (const agent of requiredAgents) if (!state.agents.includes(agent)) state.agents.push(agent)
-  }
+  resolveDependencies(state)
 
   const previousLock = await readJson(lockPath, { files: {} })
-  const lock = { toolkitVersion: packageInfo.version, files: {} }
   const previouslyManaged = {
     agents: state.managedAgents ?? [],
     commands: state.managedCommands ?? [],
   }
+  const removals = []
+  const conflicts = []
   for (const [kind, names] of Object.entries(previouslyManaged)) {
     for (const name of names.filter((item) => !state[kind].includes(item))) {
       const destination = join(opencodeDirectory, kind, `${name}.md`)
       const key = lockKey(destination)
       if (await exists(destination) && previousLock.files[key] !== hash(await readFile(destination)) && !force) {
-        throw new Error(`${destination} tiene cambios locales. Usa --force para borrarlo.`)
+        conflicts.push(`${destination} tiene cambios locales y se iba a borrar.`)
       }
-      await rm(destination, { force: true })
-      console.log(`Eliminado ${kind.slice(0, -1)} ${name}`)
+      removals.push([kind, name, destination])
     }
   }
-  const resources = [
-    ...state.agents.map((name) => [name, manifest.agents[name], join(opencodeDirectory, "agents", `${name}.md`)]),
-    ...state.commands.map((name) => [name, manifest.commands[name], join(opencodeDirectory, "commands", `${name}.md`)]),
-  ]
 
-  for (const [name, definition, destination] of resources) {
+  const resources = resourcesFor(state)
+  for (const [, , definition, destination] of resources) {
     const source = sourcePath(definition.source)
-    const sourceContent = await readFile(source)
     const existing = await exists(destination) ? await readFile(destination) : undefined
     const key = lockKey(destination)
     const previousHash = previousLock.files[key]
     if (existing && previousHash && hash(existing) !== previousHash && !force) {
-      throw new Error(`${destination} tiene cambios locales. Usa --force para sobrescribirlo.`)
+      conflicts.push(`${destination} tiene cambios locales y se iba a sobrescribir.`)
     }
+  }
+  if (conflicts.length) throw new Error(`${conflicts.join("\n")} Usa --force para continuar.`)
+  return { previousLock, removals, resources }
+}
+
+async function synchronize(state, { force = false } = {}) {
+  const { previousLock, removals, resources } = await buildPlan(state, force)
+  const lock = { toolkitVersion: packageInfo.version, files: {} }
+  for (const [kind, name, destination] of removals) {
+    await rm(destination, { force: true })
+    console.log(`Eliminado ${kind.slice(0, -1)} ${name}`)
+  }
+
+  for (const [, name, definition, destination] of resources) {
+    const source = sourcePath(definition.source)
+    const sourceContent = await readFile(source)
     await mkdir(dirname(destination), { recursive: true })
     await copyFile(source, destination)
-    lock.files[key] = hash(sourceContent)
+    lock.files[lockKey(destination)] = hash(sourceContent)
     console.log(`Sincronizado ${name}`)
   }
 
@@ -204,28 +275,38 @@ async function synchronize(state, { force = false } = {}) {
   await writeState(state, lock)
 }
 
+async function previewUpdate(state) {
+  const { previousLock, removals, resources } = await buildPlan(state, false)
+  console.log(`Version instalada: ${previousLock.toolkitVersion ?? "sin lock"}`)
+  console.log(`Version que se aplicaria: ${packageInfo.version}`)
+  for (const [kind, name] of removals) console.log(`Se eliminaria ${kind.slice(0, -1)} ${name}`)
+  for (const [, name, definition, destination] of resources) {
+    const sourceHash = hash(await readFile(sourcePath(definition.source)))
+    const currentHash = (await exists(destination)) ? hash(await readFile(destination)) : undefined
+    if (!currentHash) console.log(`Se instalaria ${name}`)
+    else if (currentHash !== sourceHash) console.log(`Se actualizaria ${name}`)
+    else console.log(`Sin cambios ${name}`)
+  }
+  console.log("Se sincronizaria opencode.jsonc sin modificar otros ajustes.")
+}
+
 async function configure(existing) {
   const assumeDefaults = flags.has("yes")
-  let catalogBaseUrl = String(flags.get("catalog-base-url") ?? existing?.catalogBaseUrl ?? "")
-  if (!catalogBaseUrl && !assumeDefaults) catalogBaseUrl = await ask("URL base de catalogos (ej. https://ai.empresa.com/skills)")
+  const catalogBaseUrl = String(flags.get("catalog-base-url") ?? existing?.catalogBaseUrl ?? manifest.catalogBaseUrl)
   if (!catalogBaseUrl) throw new Error("Indica --catalog-base-url para configurar las skills.")
 
-  let scopes = values("scope") ?? existing?.scopes
-  if (!scopes) {
-    const profile = await ask("Tipo de proyecto (dotnet, node, frontend, custom)", "dotnet")
-    if (!manifest.profiles[profile]) throw new Error(`Perfil desconocido: ${profile}`)
-    scopes = manifest.profiles[profile]
-  }
+  if (!assumeDefaults) showLogo()
+  let scopes = values("scope") ?? existing?.scopes ?? ["global"]
   assertKnown("scopes", scopes)
-  if (!values("scope")) scopes = await select("Scopes", Object.entries(manifest.scopes).map(([name, item]) => [name, item.description]), scopes, assumeDefaults)
+  if (!values("scope")) scopes = await selectResources("Selecciona los scopes para este proyecto", "scopes", scopes, assumeDefaults)
   if (scopes.length && !scopes.includes("global")) scopes = ["global", ...scopes]
 
   let agents = values("agent") ?? existing?.agents ?? []
-  if (!values("agent")) agents = await select("Agentes", Object.keys(manifest.agents).map((name) => [name, "Agente compartido"]), agents, assumeDefaults)
+  if (!values("agent")) agents = await selectResources("Selecciona los agentes", "agents", agents, assumeDefaults)
   let commands = values("command") ?? existing?.commands ?? []
-  if (!values("command")) commands = await select("Comandos", Object.keys(manifest.commands).map((name) => [name, "Comando compartido"]), commands, assumeDefaults)
+  if (!values("command")) commands = await selectResources("Selecciona los comandos", "commands", commands, assumeDefaults)
   let mcps = values("mcp") ?? existing?.mcps ?? []
-  if (!values("mcp")) mcps = await select("MCP", Object.keys(manifest.mcps).map((name) => [name, "Configuracion MCP"]), mcps, assumeDefaults)
+  if (!values("mcp")) mcps = await selectResources("Selecciona los servidores MCP", "mcps", mcps, assumeDefaults)
 
   return {
     version: 1,
@@ -257,7 +338,7 @@ async function removeResource() {
     return
   }
 
-  if (kind === "agent" && state.commands.some((commandName) => manifest.commands[commandName].requires?.agents?.includes(name))) {
+  if (kind === "agent" && state.commands.some((commandName) => registry.commands[commandName].requires?.agents?.includes(name))) {
     throw new Error(`El agente ${name} es requerido por un comando seleccionado. Elimina primero ese comando.`)
   }
   const destination = join(opencodeDirectory, collection, `${name}.md`)
@@ -291,10 +372,12 @@ async function reportStatus(failOnDrift = false) {
       if (!config.skills?.urls?.includes(urlFor(scope, state))) drift.push(`falta la URL del scope ${scope}`)
     }
     for (const name of state.mcps) {
-      if (!config.mcp?.[manifest.mcps[name].key]) drift.push(`falta la configuracion MCP ${name}`)
+      if (!config.mcp?.[registry.mcps[name].key]) drift.push(`falta la configuracion MCP ${name}`)
     }
   }
-  console.log(`Toolkit ${lock.toolkitVersion ?? "sin lock"}`)
+  console.log(`Version instalada: ${lock.toolkitVersion ?? "sin lock"}`)
+  console.log(`Version disponible: ${packageInfo.version}`)
+  if (lock.toolkitVersion !== packageInfo.version) console.log("Hay una actualizacion disponible. Ejecuta `update --dry-run` para revisarla.")
   console.log(`Scopes: ${state.scopes.join(", ") || "ninguno"}`)
   console.log(`Agentes: ${state.agents.join(", ") || "ninguno"}`)
   console.log(`Comandos: ${state.commands.join(", ") || "ninguno"}`)
@@ -308,7 +391,11 @@ try {
   if (command === "help" || flags.has("help")) usage()
   else if (command === "init") await synchronize(await configure(undefined), { force: flags.has("force") })
   else if (command === "configure") await synchronize(await configure(await loadState()), { force: flags.has("force") })
-  else if (command === "update") await synchronize(await loadState(), { force: flags.has("force") })
+  else if (command === "update") {
+    const state = await loadState()
+    if (flags.has("dry-run")) await previewUpdate(state)
+    else await synchronize(state, { force: flags.has("force") })
+  }
   else if (command === "status") await reportStatus(false)
   else if (command === "check") await reportStatus(true)
   else if (command === "remove") await removeResource()

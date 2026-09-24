@@ -1,5 +1,6 @@
 {
   "version": "1",
+  "catalogBaseUrl": "https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs",
   "scopes": {
     "global": {
       "description": "Capacidades comunes para todos los proyectos"
@@ -14,20 +15,16 @@
       "description": "Capacidades para proyectos frontend"
     }
   },
-  "profiles": {
-    "dotnet": ["global", "dotnet"],
-    "node": ["global", "node"],
-    "frontend": ["global", "frontend"],
-    "custom": ["global"]
-  },
   "agents": {
     "code-reviewer": {
-      "source": "agents/code-reviewer.md"
+      "source": "agents/code-reviewer.md",
+      "description": "Revision de codigo en modo solo lectura"
     }
   },
   "commands": {
     "review": {
       "source": "commands/review.md",
+      "description": "Ejecuta una revision del diff actual",
       "requires": {
         "agents": ["code-reviewer"]
       }
@@ -36,7 +33,8 @@
   "mcps": {
     "jira": {
       "source": "mcp/jira.example.jsonc",
-      "key": "jira"
+      "key": "jira",
+      "description": "Integracion remota con Jira"
     }
   }
 }

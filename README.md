@@ -103,7 +103,7 @@ Los scopes pueden representar una tecnologia, un dominio o un proyecto. El proye
 
 El CLI automatiza el consumo por proyecto. Las skills se registran como URLs remotas y los agentes/comandos se copian a `.opencode/`, donde OpenCode los descubre.
 
-El comando `npx @company/opencode-toolkit` es un ejemplo. No funcionara hasta sustituir `@company` por el scope corporativo y publicar el paquete en el registro npm interno.
+El paquete se publica como `@ismaeltorres00/opencode-toolkit`. El comando `npx` no funcionara hasta publicar la primera version en npm.
 
 Para probar el CLI sin publicarlo, ejecútalo desde un clon local del toolkit:
 
@@ -114,10 +114,12 @@ node "C:\ruta\a\opencode-company-toolkit\cli\bin.mjs" init
 Tras publicarlo en el registro interno, un proyecto nuevo ejecuta:
 
 ```bash
-npx @company/opencode-toolkit init
+npx @ismaeltorres00/opencode-toolkit init
 ```
 
-El asistente pide la URL de los catalogos, el tipo de proyecto y los recursos opcionales. Para un proyecto .NET selecciona por defecto los scopes `global` y `dotnet`; el usuario puede marcar agentes, comandos y MCP.
+El asistente muestra el logo corporativo y selectores de teclado. Usa flechas para moverte, espacio para marcar y Enter para confirmar. `global` siempre esta incluido; marca `dotnet`, `node`, `frontend` u otros scopes publicados segun el proyecto. El usuario puede marcar agentes, comandos y MCP sin escribir nombres ni URLs.
+
+La URL de catalogos por defecto es `https://ismaeltorres00.github.io/opencode-company-toolkit/catalogs`. Solo es necesario usar `--catalog-base-url` si se publica el catalogo en otro host.
 
 Durante el desarrollo del toolkit se puede ejecutar directamente:
 
@@ -129,7 +131,6 @@ Tambien admite instalacion no interactiva:
 
 ```bash
 node <ruta-al-toolkit>/cli/bin.mjs init \
-  --catalog-base-url https://ai.empresa.com/skills \
   --scope global,dotnet \
   --command review \
   --mcp jira \
@@ -151,15 +152,26 @@ Los archivos gestionados quedan registrados en el proyecto:
 Gestion posterior:
 
 ```bash
-npx @company/opencode-toolkit configure  # Cambiar selecciones de forma interactiva
-npx @company/opencode-toolkit update     # Actualizar recursos del toolkit instalado
-npx @company/opencode-toolkit status     # Ver selecciones y modificaciones locales
-npx @company/opencode-toolkit check      # Fallar si hay recursos ausentes o modificados
-npx @company/opencode-toolkit remove --kind scope --name dotnet
-npx @company/opencode-toolkit remove --kind command --name review
+npx @ismaeltorres00/opencode-toolkit configure  # Cambiar selecciones de forma interactiva
+npx @ismaeltorres00/opencode-toolkit@latest update --dry-run  # Previsualizar la actualizacion
+npx @ismaeltorres00/opencode-toolkit@latest update            # Aplicar la actualizacion
+npx @ismaeltorres00/opencode-toolkit status     # Ver selecciones y modificaciones locales
+npx @ismaeltorres00/opencode-toolkit check      # Fallar si hay recursos ausentes o modificados
+npx @ismaeltorres00/opencode-toolkit remove --kind scope --name dotnet
+npx @ismaeltorres00/opencode-toolkit remove --kind command --name review
 ```
 
-El CLI no sobrescribe ni elimina un agente o comando modificado localmente sin `--force`. Al quitar un scope, elimina su URL gestionada de `opencode.jsonc`; al quitar un MCP, elimina solamente su bloque gestionado.
+Los recursos no se actualizan solos. Cuando alguien cambie un agente en el toolkit, debe publicar una nueva version npm. Cada proyecto decide cuando revisar y aplicar esa version con `update`.
+
+`status` compara la version instalada en el proyecto con la version del CLI que se esta ejecutando. `update --dry-run` muestra que recursos se instalarian, actualizarian o eliminarian sin escribir archivos. `update` hace un preflight de todos los recursos antes de modificar nada: si uno tiene cambios locales, cancela la operacion completa. No sobrescribe ni elimina un agente o comando modificado localmente sin `--force`.
+
+Tras revisar el diff local, se puede aceptar una actualizacion forzada de forma explicita:
+
+```bash
+npx @ismaeltorres00/opencode-toolkit@latest update --force
+```
+
+Al quitar un scope, elimina su URL gestionada de `opencode.jsonc`; al quitar un MCP, elimina solamente su bloque gestionado.
 
 Al actualizar `opencode.jsonc`, conserva las claves de configuracion existentes, pero normaliza el archivo como JSON y elimina sus comentarios. Mantener las reglas de proyecto en `AGENTS.md` evita mezclar instrucciones con esta configuracion gestionada.
 
@@ -193,3 +205,7 @@ node scripts/validate-catalogs.mjs
 El validador comprueba el contrato de catalogos remotos de OpenCode: `index.json`, nombres unicos, `SKILL.md` y el frontmatter basico. El workflow de GitHub ejecuta esta misma comprobacion en cada pull request y en `main`.
 
 Tras cambiar `opencode.json(c)`, agentes, comandos o skills, reinicia OpenCode: carga la configuracion al arrancar.
+
+## Publicacion
+
+Consulta [`docs/PUBLISHING.md`](docs/PUBLISHING.md) para publicar el paquete npm, distribuir los catalogos HTTP y resolver requisitos de 2FA.

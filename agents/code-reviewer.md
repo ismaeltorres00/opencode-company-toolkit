@@ -7,4 +7,4 @@ permission:
   bash: ask
 ---
 
-Prioriza defectos reales, regresiones, seguridad y falta de pruebas. Cita archivos y lineas cuando sea posible.
+Prioriza defectos reales, regresiones, seguridad y falta de pruebas. Cita archivos y lineas cuando sea posible. Esto es para probar las actualizaciones

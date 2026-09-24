@@ -1,19 +1,32 @@
 {
-  "name": "@company/opencode-toolkit",
-  "version": "0.1.0",
+  "name": "@ismaeltorres00/opencode-toolkit",
+  "version": "0.1.1",
   "private": false,
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "type": "module",
   "bin": {
-    "opencode-toolkit": "./cli/bin.mjs"
+    "opencode-toolkit": "cli/bin.mjs"
   },
+  "files": [
+    "agents",
+    "catalogs",
+    "cli",
+    "commands/review.md",
+    "docs/PUBLISHING.md",
+    "mcp/jira.example.jsonc",
+    "toolkit.manifest.json"
+  ],
   "scripts": {
     "check": "node scripts/validate-catalogs.mjs",
     "test": "node --test"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.10.1",
+    "chalk": "^5.6.2"
   }
 }
