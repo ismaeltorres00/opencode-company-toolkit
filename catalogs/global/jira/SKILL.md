@@ -1,5 +1,5 @@
 ---
-name: jira-task-global
+name: jira
 description: Redactar en español títulos, descripciones y registros de trabajo para tareas, subtareas, bugs, mejoras y spikes de análisis en Jira con un estilo práctico, humano y técnico. Usar cuando el usuario pida crear, revisar, mejorar o resumir una tarea de Jira; convertir una incidencia, correo, captura o notas técnicas en un ticket; proponer un título; redactar una descripción funcional o técnica; o transformar cambios realizados en un registro de trabajo. Mantener tecnicismos en inglés cuando sea natural, evitar sobreestructurar tareas pequeñas y no inventar requisitos, métricas ni decisiones no aportadas.
 ---
 
@@ -107,6 +107,3 @@ No introducir arquitectura, clases, patrones o soluciones de implementación si 
 - Para tareas que dependen de otra, mencionar la dependencia solo si afecta al orden o al alcance.
 - Para adjuntos o mockups, referirse a ellos como "mockup adjunto", "captura adjunta" o "caso adjunto" sin describir detalles no visibles o no proporcionados.
 
-## Referencia de ejemplos
-
-Consultar `references/examples.md` cuando sea necesario afinar el tono, tamaño o estructura para tickets y registros de trabajo.

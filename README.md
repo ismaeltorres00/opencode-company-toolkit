@@ -1,586 +1,141 @@
 # Company OpenCode Toolkit
 
-Repositorio central para compartir y gobernar capacidades de OpenCode entre equipos y proyectos sin obligar a que todos consuman lo mismo.
+Repositorio central de capacidades compartidas para OpenCode. Publica skills por HTTP y mantiene ejemplos reutilizables de agentes, comandos y MCP.
 
-El objetivo es separar claramente:
+Cada proyecto decide que capacidades consume. No se instala el toolkit completo de forma global.
 
-- capacidades globales que deben estar disponibles en todos los proyectos;
-- capacidades específicas por tecnología o dominio;
-- agentes y comandos reutilizables;
-- configuración MCP y plugins;
-- configuración propia de cada repositorio consumidor.
-
-La idea principal es **centralizar el contenido pero mantener el consumo opt-in**.
-
----
-
-## 1. Estructura del repositorio
+## Estructura
 
 ```text
-opencode-company-toolkit/
-├── catalogs/                  # Skills publicables como catálogos HTTP
-│   ├── global/                # Skills comunes a toda la organización
-│   │   ├── index.json
-│   │   ├── jira/
-│   │   └── git-workflow/
-│   ├── dotnet/                # Skills específicas de .NET
-│   │   ├── index.json
-│   │   ├── dotnet-review/
-│   │   └── dotnet-testing/
-│   ├── node/                  # Skills específicas de Node.js
-│   └── frontend/              # Skills específicas de frontend
-│
-├── agents/                    # Definiciones reutilizables de agentes
-│   ├── backend-developer.md
-│   └── code-reviewer.md
-│
-├── commands/                  # Comandos reutilizables de OpenCode
-│   ├── review.md
-│   └── test.md
-│
-├── plugins/                   # Plugins propios o ejemplos de plugins
-│   ├── README.md
-│   └── example-audit.ts
-│
-├── mcp/                       # Ejemplos de configuración MCP
-│   ├── README.md
-│   └── jira.example.jsonc
-│
-├── configs/                   # Configuraciones de referencia
-│   ├── base/
-│   ├── profiles/
-│   └── examples/
-│
-├── templates/                 # Plantilla para nuevos proyectos
-│   └── project-opencode/
-│       ├── AGENTS.md
-│       └── opencode.jsonc
-│
-├── scripts/                   # Herramientas de validación y prueba
-│   ├── serve-local.sh
-│   └── validate-catalogs.py
-│
-├── docs/                      # Documentación adicional
-│   ├── CONSUMPTION.md
-│   ├── GOVERNANCE.md
-│   ├── PUBLISHING.md
-│   └── SCOPES.md
-│
-├── CHANGELOG.md
-└── README.md
+catalogs/                 Skills publicables por HTTP
+  global/                 Capacidades comunes
+    index.json
+    jira/SKILL.md
+  dotnet/                 Ejemplo de scope tecnologico
+    dotnet-review/SKILL.md
+  node/                   Ejemplo de scope tecnologico
+    node-review/SKILL.md
+  frontend/               Ejemplo de scope tecnologico
+    frontend-review/SKILL.md
+agents/                   Agentes para copiar al proyecto consumidor
+  code-reviewer.md
+commands/                 Comandos para copiar al proyecto consumidor
+  review.md
+mcp/                      Fragmentos de configuracion MCP
+  jira.example.jsonc
+scripts/validate-catalogs.mjs
+scripts/serve-catalogs.mjs
 ```
 
----
+## Skills remotas
 
-## 2. Modelo de scopes
+Un catalogo es un directorio HTTP con un `index.json`. Cada skill debe estar en `catalogs/<scope>/<skill>/SKILL.md` y su nombre debe coincidir con el declarado en el indice.
 
-No todos los proyectos deben recibir todas las capacidades.
-
-El repositorio está pensado para organizar las skills por scope.
-
-### Global
-
-Capacidades que deberían poder utilizar prácticamente todos los proyectos.
+El catalogo `global` incluye la skill `jira`. Los catalogos `dotnet`, `node` y `frontend` incluyen una skill de revision de ejemplo para probar la composicion por tecnologia.
 
 ```text
 catalogs/global/
-├── jira/
-└── git-workflow/
+  index.json
+  jira/SKILL.md
 ```
 
-Ejemplos:
+Publica el contenido de `catalogs/` en un host estatico. Si se publica en `https://ai.example.com/skills/`, un proyecto configura la skill asi:
 
-- Jira
-- Git
-- convenciones corporativas
-- documentación común
-
-### Tecnología
-
-Capacidades disponibles solamente para proyectos que utilicen esa tecnología.
-
-```text
-catalogs/dotnet/
-catalogs/node/
-catalogs/frontend/
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "urls": ["https://ai.example.com/skills/global/"]
+  }
+}
 ```
 
-Por ejemplo:
+Para probarlo localmente desde la raiz del repositorio:
 
-```text
-Proyecto API .NET
-    global
-    dotnet
-
-Proyecto frontend
-    global
-    frontend
-
-Proyecto Node.js
-    global
-    node
+```bash
+node scripts/serve-catalogs.mjs 8080
 ```
 
-Se pueden añadir más scopes cuando sea necesario:
+Y en un proyecto de prueba:
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "urls": ["http://localhost:8080/global/"]
+  }
+}
+```
+
+## Scopes
+
+`global` contiene capacidades comunes y debe mantenerse pequeño. Se pueden publicar mas catalogos sin cambiar el modelo:
 
 ```text
 catalogs/
-├── global/
-├── dotnet/
-├── node/
-├── frontend/
-├── python/
-├── mobile/
-├── sabre/
-├── amadeus/
-└── payments/
+  global/
+  dotnet/
+  frontend/
+  payments/
+  booking-api/
 ```
 
-El nombre del scope representa una capacidad o contexto compartido, no necesariamente un lenguaje.
+Un proyecto compone solo los scopes que necesita:
 
----
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "urls": [
+      "https://ai.example.com/skills/global/",
+      "https://ai.example.com/skills/dotnet/",
+      "https://ai.example.com/skills/booking-api/"
+    ]
+  }
+}
+```
 
-## 3. Skills
+Los scopes pueden representar una tecnologia, un dominio o un proyecto. El proyecto consumidor mantiene sus reglas propias en `AGENTS.md`.
 
-Las skills reutilizables viven en `catalogs/`.
+## Agente y comando
 
-Cada catálogo contiene un `index.json` y una carpeta por skill.
-
-Ejemplo:
+`agents/code-reviewer.md` es un agente de solo lectura y `commands/review.md` define `/review`. Copia ambos archivos juntos en el proyecto consumidor:
 
 ```text
-catalogs/dotnet/
-├── index.json
-├── dotnet-review/
-│   └── dotnet-review.md
-└── dotnet-testing/
-    └── dotnet-testing.md
+.opencode/
+  agents/code-reviewer.md
+  commands/review.md
 ```
 
-Un catálogo puede publicarse por HTTP y ser consumido desde `opencode.json`.
+El comando usa el agente `code-reviewer`, por lo que los dos archivos son necesarios.
 
-### Ejemplo de catálogo
+## MCP de Jira
 
-`catalogs/dotnet/index.json`:
+`mcp/jira.example.jsonc` es un fragmento valido de configuracion. Integra el bloque `mcp.jira` en el `opencode.jsonc` del proyecto y sustituye la URL por la de vuestro servidor MCP:
 
-```json
+```jsonc
 {
-  "skills": [
-    {
-      "name": "dotnet-review",
-      "version": "1",
-      "files": ["dotnet-review.md"]
-    },
-    {
-      "name": "dotnet-testing",
-      "version": "1",
-      "files": ["dotnet-testing.md"]
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "jira": {
+      "type": "remote",
+      "url": "https://mcp.example.com/jira",
+      "oauth": {}
     }
-  ]
+  }
 }
 ```
 
-Cuando una skill cambia de forma relevante, incrementar su `version` permite controlar la actualización del contenido publicado.
+`oauth: {}` permite el registro OAuth dinamico cuando el servidor lo soporta. No se deben guardar tokens, secretos ni credenciales en este repositorio.
 
----
+## Validacion
 
-## 4. Consumo opt-in desde un proyecto
-
-Cada proyecto decide qué catálogos quiere consumir.
-
-### Proyecto .NET
-
-```jsonc
-{
-  "$schema": "https://opencode.ai/config.json",
-  "skills": [
-    "https://ai.empresa.com/skills/global/",
-    "https://ai.empresa.com/skills/dotnet/"
-  ]
-}
-```
-
-Este proyecto tendría disponibles:
-
-```text
-jira
-Git workflow
-dotnet-review
-dotnet-testing
-```
-
-pero no las skills de Node o frontend.
-
-### Proyecto frontend
-
-```jsonc
-{
-  "$schema": "https://opencode.ai/config.json",
-  "skills": [
-    "https://ai.empresa.com/skills/global/",
-    "https://ai.empresa.com/skills/frontend/"
-  ]
-}
-```
-
-### Proyecto .NET con Sabre
-
-Si se crea un scope adicional:
-
-```text
-catalogs/sabre/
-```
-
-el proyecto podría declarar:
-
-```jsonc
-{
-  "$schema": "https://opencode.ai/config.json",
-  "skills": [
-    "https://ai.empresa.com/skills/global/",
-    "https://ai.empresa.com/skills/dotnet/",
-    "https://ai.empresa.com/skills/sabre/"
-  ]
-}
-```
-
-Este es el mecanismo principal de opt-in.
-
----
-
-## 5. Agentes
-
-Las definiciones compartidas de agentes viven en:
-
-```text
-agents/
-```
-
-Ejemplos incluidos:
-
-```text
-backend-developer.md
-code-reviewer.md
-```
-
-Los agentes no forman parte automáticamente de los catálogos HTTP de skills.
-
-Deben distribuirse o incorporarse a la configuración OpenCode del proyecto o del entorno que deba utilizarlos.
-
-La recomendación es mantener aquí la **fuente de verdad** de los agentes y decidir posteriormente cómo sincronizarlos con los proyectos que los necesiten.
-
-Ejemplo conceptual:
-
-```text
-backend-developer
-    ├── skills globales
-    ├── skills .NET
-    └── herramientas permitidas
-```
-
-Un agente debe representar un rol o una forma de trabajar; una skill debe representar una capacidad reutilizable.
-
----
-
-## 6. Comandos
-
-Los comandos compartidos se almacenan en:
-
-```text
-commands/
-```
-
-Ejemplos:
-
-```text
-review.md
-test.md
-```
-
-Su objetivo es estandarizar operaciones frecuentes del equipo, por ejemplo:
-
-```text
-/review
-/test
-```
-
-Igual que con los agentes, este directorio actúa como fuente central y los proyectos pueden consumir únicamente los comandos que necesiten.
-
----
-
-## 7. MCP
-
-`mcp/` contiene ejemplos y configuración reutilizable relacionada con MCP.
-
-```text
-mcp/
-├── README.md
-└── jira.example.jsonc
-```
-
-Importante:
-
-**No almacenar secretos, tokens ni credenciales en este repositorio.**
-
-Los secretos deben proporcionarse mediante el mecanismo de configuración seguro utilizado por la organización.
-
-MCP permite conectar OpenCode con sistemas externos como:
-
-- Jira
-- Confluence
-- documentación interna
-- servicios propios
-- herramientas de desarrollo
-
----
-
-## 8. Plugins
-
-Los plugins propios viven en:
-
-```text
-plugins/
-```
-
-Este directorio puede utilizarse durante el desarrollo del plugin o como referencia.
-
-Si un plugin debe compartirse entre muchos proyectos, es preferible distribuirlo como un paquete interno versionado en lugar de copiar el código manualmente.
-
----
-
-## 9. Configuraciones
-
-`configs/` contiene ejemplos de composición.
-
-```text
-configs/
-├── base/
-│   └── opencode.jsonc
-├── profiles/
-│   ├── dotnet.jsonc
-│   ├── frontend.jsonc
-│   └── node.jsonc
-└── examples/
-    └── project-dotnet.jsonc
-```
-
-### `base`
-
-Configuración común de referencia.
-
-### `profiles`
-
-Ejemplos de combinación por tecnología o tipo de proyecto.
-
-### `examples`
-
-Ejemplos completos que pueden utilizarse como punto de partida.
-
-Estos ficheros son ejemplos de composición. Cada repositorio consumidor debe mantener su propio `opencode.json`/`opencode.jsonc` con las capacidades que realmente necesita.
-
----
-
-## 10. AGENTS.md del proyecto
-
-Las reglas específicas de un repositorio no deberían vivir en este toolkit.
-
-Cada proyecto mantiene su propio:
-
-```text
-AGENTS.md
-```
-
-Ejemplo:
-
-```md
-# Project
-
-API de reservas.
-
-## Architecture
-
-- Clean Architecture.
-- Domain no depende de Infrastructure.
-- Los controllers no contienen lógica de negocio.
-
-## Commands
-
-Build:
-`dotnet build`
-
-Tests:
-`dotnet test`
-```
-
-El toolkit central define capacidades compartidas.
-
-`AGENTS.md` define el contexto y reglas propias del proyecto.
-
----
-
-## 11. Probar el repositorio localmente
-
-Antes de publicar los catálogos en infraestructura corporativa se pueden probar con un servidor HTTP local.
-
-Desde la raíz del repositorio:
+Ejecuta antes de publicar:
 
 ```bash
-./scripts/serve-local.sh 8080
+node scripts/validate-catalogs.mjs
 ```
 
-Los catálogos quedarán disponibles en URLs similares a:
+El validador comprueba el contrato de catalogos remotos de OpenCode: `index.json`, nombres unicos, `SKILL.md` y el frontmatter basico. El workflow de GitHub ejecuta esta misma comprobacion en cada pull request y en `main`.
 
-```text
-http://localhost:8080/global/
-http://localhost:8080/dotnet/
-http://localhost:8080/node/
-http://localhost:8080/frontend/
-```
-
-En un proyecto de prueba:
-
-```jsonc
-{
-  "$schema": "https://opencode.ai/config.json",
-  "skills": [
-    "http://localhost:8080/global/",
-    "http://localhost:8080/dotnet/"
-  ]
-}
-```
-
-Abrir OpenCode desde ese proyecto y comprobar que aparecen las skills de `global` y `dotnet`, pero no las de otros scopes.
-
----
-
-## 12. Validación
-
-Antes de publicar cambios:
-
-```bash
-python scripts/validate-catalogs.py
-```
-
-El validador permite detectar errores básicos en la estructura de los catálogos antes de que los proyectos consumidores los utilicen.
-
-Este script puede ejecutarse también desde CI.
-
----
-
-## 13. Publicación
-
-La carpeta que se publica por HTTP es:
-
-```text
-catalogs/
-```
-
-Ejemplo de destino:
-
-```text
-https://ai.empresa.com/skills/
-```
-
-Resultado:
-
-```text
-https://ai.empresa.com/skills/global/
-https://ai.empresa.com/skills/dotnet/
-https://ai.empresa.com/skills/node/
-https://ai.empresa.com/skills/frontend/
-```
-
-No es necesario exponer por HTTP todo el repositorio Git.
-
-Solo los artefactos que deban ser consumidos como catálogo.
-
-Consultar [`docs/PUBLISHING.md`](docs/PUBLISHING.md) para el proceso de publicación.
-
----
-
-## 14. Flujo recomendado de cambios
-
-```text
-Developer
-    │
-    ▼
-Pull Request
-    │
-    ├── validación de catálogos
-    ├── revisión de contenido
-    └── revisión de permisos / seguridad
-    │
-    ▼
-Merge
-    │
-    ▼
-Publicación
-    │
-    ▼
-Catálogos HTTP
-    │
-    ▼
-Proyectos consumidores
-```
-
-Las modificaciones importantes deberían actualizar también `CHANGELOG.md`.
-
----
-
-## 15. Regla de diseño
-
-Antes de añadir algo al repositorio, decidir qué tipo de elemento es:
-
-| Necesidad | Ubicación |
-|---|---|
-| Capacidad reusable bajo demanda | `catalogs/<scope>/` |
-| Rol especializado | `agents/` |
-| Operación repetitiva | `commands/` |
-| Integración externa | `mcp/` |
-| Extensión de OpenCode | `plugins/` |
-| Reglas propias de un proyecto | `AGENTS.md` del proyecto |
-| Ejemplo de configuración | `configs/` |
-
-Evitar crear una única skill gigantesca con todas las reglas de la empresa.
-
-Es preferible componer capacidades pequeñas y específicas.
-
----
-
-## 16. Ejemplo final
-
-Supongamos tres proyectos:
-
-```text
-Booking.Api        -> .NET + Sabre
-Admin.Frontend     -> Frontend
-Notifications      -> Node.js
-```
-
-La composición podría ser:
-
-```text
-Booking.Api
-├── global
-├── dotnet
-└── sabre
-
-Admin.Frontend
-├── global
-└── frontend
-
-Notifications
-├── global
-└── node
-```
-
-De esta forma Jira puede estar disponible para todos mediante `global`, mientras que cada proyecto recibe únicamente las capacidades técnicas o de dominio que necesita.
-
----
-
-## Documentación adicional
-
-- [`docs/CONSUMPTION.md`](docs/CONSUMPTION.md): consumo desde proyectos.
-- [`docs/SCOPES.md`](docs/SCOPES.md): organización de scopes.
-- [`docs/PUBLISHING.md`](docs/PUBLISHING.md): publicación de catálogos.
-- [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md): mantenimiento y gobierno del toolkit.
+Tras cambiar `opencode.json(c)`, agentes, comandos o skills, reinicia OpenCode: carga la configuracion al arrancar.

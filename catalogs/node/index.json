@@ -1,5 +1,9 @@
 {
   "skills": [
-    {"name": "node-review", "version": "1", "files": ["node-review.md"]}
+    {
+      "name": "node-review",
+      "version": "1",
+      "files": ["SKILL.md"]
+    }
   ]
 }

@@ -1,4 +1,5 @@
 ---
+name: code-reviewer
 description: Revisa cambios sin modificar archivos salvo peticion explicita.
 mode: subagent
 permission:

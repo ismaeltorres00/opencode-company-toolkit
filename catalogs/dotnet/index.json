@@ -1,6 +1,9 @@
 {
   "skills": [
-    {"name": "dotnet-review", "version": "1", "files": ["dotnet-review.md"]},
-    {"name": "dotnet-testing", "version": "1", "files": ["dotnet-testing.md"]}
+    {
+      "name": "dotnet-review",
+      "version": "1",
+      "files": ["SKILL.md"]
+    }
   ]
 }

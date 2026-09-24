@@ -1,5 +1,9 @@
 {
   "skills": [
-    {"name": "frontend-review", "version": "1", "files": ["frontend-review.md"]}
+    {
+      "name": "frontend-review",
+      "version": "1",
+      "files": ["SKILL.md"]
+    }
   ]
 }
