@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Solo skills comunes a TODOS los proyectos.
+  "skills": [
+    "https://ai.example.com/skills/global/"
+  ],
+
+  "share": "manual"
+}

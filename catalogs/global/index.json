@@ -1,0 +1,6 @@
+{
+  "skills": [
+    {"name": "jira", "version": "1", "files": ["jira.md"]},
+    {"name": "git-workflow", "version": "1", "files": ["git-workflow.md"]}
+  ]
+}
